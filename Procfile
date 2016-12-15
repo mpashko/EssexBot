@@ -1,1 +1,1 @@
-web: gunicorn essexbot:app
+web: python main.py
