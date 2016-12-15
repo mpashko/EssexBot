@@ -1,1 +1,1 @@
-web: python essexbot:app
+web: python main.py
