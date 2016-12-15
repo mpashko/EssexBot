@@ -1,1 +1,1 @@
-web: gunicorn essexbot:app
+worker: gunicorn essexbot:app
