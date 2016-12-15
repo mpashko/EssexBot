@@ -9,7 +9,7 @@ from modules.exrate import ExRateRequestor
 from modules.weather import WeatherRequestor
 
 TOKEN = "286587089:AAEKSCnEp13jwzAc3TDH6Kv0114iCPCEAGI"
-PORT = int(os.environ.get("PORT", "5000"))
+PORT = int(os.environ.get("PORT", 5000))
 
 logging.basicConfig(level=logging.DEBUG,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

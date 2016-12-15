@@ -1,1 +1,1 @@
-web: gunicorn essexbot:app
+web: python essexbot:app
