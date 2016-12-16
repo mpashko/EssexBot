@@ -18,21 +18,21 @@ class ExRateRequestor:
         rows = table.find_all('tr')
         purchase_header = rows[0].find_all('td')[1].text
         sale_header = rows[0].find_all('td')[2].text
-        nbu_header = rows[0].find_all('td')[3].text
+        #nbu_header = rows[0].find_all('td')[3].text
 
         exrate_dict = {}
         for row in rows[1:]:
             currency = row.find('th').text
             purchase_value = row.find_all('td')[0].text
             sale_value = row.find_all('td')[1].text
-            nbu_value = row.find_all('td')[2].text
+            #nbu_value = row.find_all('td')[2].text
 
             purchase_exrate = self.find_exrate_in_string(purchase_value)
             sale_exrate = self.find_exrate_in_string(sale_value)
-            nbu_exrate = self.find_exrate_in_string(nbu_value)
+            #nbu_exrate = self.find_exrate_in_string(nbu_value)
 
-            exrate_dict[currency] = {purchase_header: purchase_exrate, sale_header: sale_exrate,
-                                            nbu_header: nbu_exrate}
+            exrate_dict[currency] = {purchase_header: purchase_exrate, sale_header: sale_exrate}
+                                            #nbu_header: nbu_exrate}
         return exrate_dict
 
     def to_string(self, exrate_dict, currency=None):
@@ -51,11 +51,21 @@ class ExRateRequestor:
             exrate_string += "\n"
         return exrate_string
 
-    def show_required_currency(self, currency):
-        required_currency_exrate = self.get_exrate_dict()[currency]
+    def show_required_currency(self, currency=None):
+        required_currency_exrate = self.get_exrate_dict()[currency] if currency is not None else self.get_exrate_dict()
         return self.to_string(required_currency_exrate, currency=currency)
+
+    def convert_amount(self, amount, from_currency, to_currency):
+        if to_currency is "UAH":
+            from_currency_exrate = self.get_exrate_dict()[from_currency]
+            return round(amount * from_currency_exrate["Покупка"], 1)
+        else:
+            from_currency_exrate = self.get_exrate_dict()[to_currency]
+            return round(amount / from_currency_exrate["Продажа"], 1)
 
 
 if __name__ == "__main__":
     exrate_status = ExRateRequestor()
-    print(exrate_status.show_required_currency("USD"))
+    print(exrate_status.show_required_currency())
+    print(exrate_status.show_required_currency("RUB"))
+    print(exrate_status.convert_amount(200, "USD", "UAH"))
