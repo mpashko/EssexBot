@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-#
-# EssexBot
-
 import logging
 import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
@@ -21,12 +18,13 @@ logger = logging.getLogger(__name__)
 
 def get_start_message(bot, updater):
     updater.message.reply_text("Приветствую {}! Чем могу быть полезен?\n"
-                              "\n"
-                              "На данный момент, могу подсказать прогноз погоды на сегодня в Киеве,"
-                              " а также актуальный курс валют.\n"
-                              "\n"
-                              "Если хочешь увидеть это сообщение еще раз - просто введи /help."
-                              .format(updater.message.from_user.first_name))
+                               "\n"
+                               "- Прогноз погоды в Киеве на сегодня;\n"
+                               "- Киноафиша\n"
+                               "- Курс валют и конвертация\n"
+                               "\n"
+                               "Если хочешь увидеть это сообщение еще раз - просто введи /help."
+                               .format(updater.message.from_user.first_name))
 
 
 def get_help_message(bot, updater):
@@ -64,25 +62,25 @@ def check_message(bot, updater):
     print(user_message)
 
     for i in range(len(user_message)):
-        # погода
+        # WEATHER
         if "погода" in user_message[i]:
             updater.message.reply_text(WeatherRequestor().current_weather())
 
-        # фильмы
-        if user_message[i][:5] in ["фильм"]:
+        # MOVIES
+        if user_message[i][:5] in ["фильм", "кино"]:
             if user_message[i - 1].isdigit():
                 quantity = int(user_message[i - 1])
                 top_movies = MoviesRequestor().get_actual_movie_list(limit=quantity)
-                updater.message.reply_text("ТОП {} на сейчас:\n{}".format(quantity, top_movies))
-            elif user_message[i - 2].isdigit():
-                quantity = int(user_message[i - 2])
-                top_movies = MoviesRequestor().get_actual_movie_list(limit=quantity)
-                updater.message.reply_text("ТОП {} на сейчас:\n{}".format(quantity, top_movies))
+                updater.message.reply_text(parse_mode="HTML",
+                                           disable_web_page_preview=True,
+                                           text="Лучшие {} фильмов на сейчас:\n{}".format(quantity, top_movies))
             else:
                 movies = MoviesRequestor().get_actual_movie_list()
-                updater.message.reply_text("Самые популярные на данный момент:\n{}".format(movies))
+                updater.message.reply_text(parse_mode="HTML",
+                                           disable_web_page_preview=False,
+                                           text="Советую посмотреть {}".format(movies))
 
-        # курс валют
+        # EXCHANGE RATE
         if "валют" in user_message[i]:
             updater.message.reply_text(ExRateRequestor().show_required_currency())
 
@@ -103,7 +101,7 @@ def check_message(bot, updater):
                 updater.message.reply_text("К сожалению, на данный момент, могу проводить конвертацию только"
                                            " с гривнами.")
 
-        # другое
+        # OTHER
         if user_message[i] in ["привет", "здравствуй"]:
             updater.message.reply_text("Приветствую {}!".format(updater.message.from_user.first_name))
 
