@@ -2,12 +2,12 @@
 import logging
 import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from modules.exrate import ExRateRequestor
+from modules.exrates import ExRateRequestor
 from modules.weather import WeatherRequestor
 from modules.movies import MoviesRequestor
 
-TOKEN = "286587089:AAEKSCnEp13jwzAc3TDH6Kv0114iCPCEAGI"
-#TOKEN = "299609446:AAGk2Gwyr3s-OV_AGBXGVj6wKudVoG_yQoE"
+#TOKEN = "286587089:AAEKSCnEp13jwzAc3TDH6Kv0114iCPCEAGI"    # EssexBot
+TOKEN = "299609446:AAGk2Gwyr3s-OV_AGBXGVj6wKudVoG_yQoE"     # AdiutorBot
 PORT = int(os.environ.get("PORT", 5000))
 
 logging.basicConfig(level=logging.DEBUG,
@@ -32,29 +32,7 @@ def get_help_message(bot, updater):
                               " а также актуальный курс валют.\n")
 
 
-def get_value(user_input):
-    """
-    Return currency name from user input
 
-    >>> get_value("доллар")
-    'USD'
-    >>> get_value("tdhj")
-    False
-    >>> get_value("")
-    False
-    >>> get_value(12)
-    False
-    """
-    currencies = {"USD": ["usd", "дол"],
-                  "EUR": ["eur", "евр"],
-                  "RUB": ["rub", "руб"],
-                  "UAH": ["uah", "грн", "гри"]}
-
-    if isinstance(user_input, str):
-        for key, value in currencies.items():
-            if user_input[:3] in value:
-                return key
-    return False
 
 
 def check_message(bot, updater):
@@ -62,9 +40,12 @@ def check_message(bot, updater):
     print(user_message)
 
     for i in range(len(user_message)):
+
+
         # WEATHER
         if "погода" in user_message[i]:
             updater.message.reply_text(WeatherRequestor().current_weather())
+
 
         # MOVIES
         if user_message[i][:5] in ["фильм", "кино"]:
@@ -73,12 +54,13 @@ def check_message(bot, updater):
                 top_movies = MoviesRequestor().get_actual_movie_list(limit=quantity)
                 updater.message.reply_text(parse_mode="HTML",
                                            disable_web_page_preview=True,
-                                           text="Лучшие {} фильмов на сейчас:\n{}".format(quantity, top_movies))
+                                           text="Лучшие {} фильмов на данный момент:\n{}".format(quantity, top_movies))
             else:
                 movies = MoviesRequestor().get_actual_movie_list()
                 updater.message.reply_text(parse_mode="HTML",
                                            disable_web_page_preview=False,
                                            text="Советую посмотреть {}".format(movies))
+
 
         # EXCHANGE RATE
         if "валют" in user_message[i]:
@@ -101,6 +83,7 @@ def check_message(bot, updater):
                 updater.message.reply_text("К сожалению, на данный момент, могу проводить конвертацию только"
                                            " с гривнами.")
 
+
         # OTHER
         if user_message[i] in ["привет", "здравствуй"]:
             updater.message.reply_text("Приветствую {}!".format(updater.message.from_user.first_name))
@@ -110,10 +93,10 @@ def main():
     # Main Updater with Webhook
     updater = Updater(TOKEN)
 
-    updater.start_webhook(listen="0.0.0.0",
-                          port=PORT,
-                          url_path=TOKEN)
-    updater.bot.setWebhook("https://essexbot.herokuapp.com/" + TOKEN)
+    # updater.start_webhook(listen="0.0.0.0",
+    #                       port=PORT,
+    #                       url_path=TOKEN)
+    # updater.bot.setWebhook("https://essexbot.herokuapp.com/" + TOKEN)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -126,7 +109,7 @@ def main():
     updater.dispatcher.add_handler(MessageHandler(Filters.text, check_message))
 
     # Comment out the line below before commit
-    #updater.start_polling()
+    updater.start_polling()
 
     updater.idle()
 
