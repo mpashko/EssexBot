@@ -16,5 +16,5 @@ class Spreadsheet:
 
 
 if __name__ == "__main__":
-    s = Spreadsheet(file='dou_vacancies', config='credentials_google_spreadsheets.json')
+    s = Spreadsheet(file='dou_vacancies', config='creds_google_spreadsheets.json')
     s.write_to_spreadsheet()
