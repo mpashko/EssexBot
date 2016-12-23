@@ -53,4 +53,4 @@ class MoviesRequestor:
 
 if __name__ == "__main__":
     movies = MoviesRequestor()
-    print(movies.get_actual_movie_list(2))
+    print(movies.get_actual_movie_list(10))

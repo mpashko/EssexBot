@@ -1,102 +1,97 @@
 import requests
-from bs4 import BeautifulSoup
-import re
+import datetime
 
-UAH = 'UAH'
-USD = 'USD'
-EUR = 'EUR'
-RUB = 'RUB'
+TOKEN = 'b73aefb24253af83b2e8eb37f852e73125497748'
+URL_BASE = 'http://api.minfin.com.ua/'
 
 
-def get_currency(input):
-    currencies = {USD: ['usd', 'дол'],
-                  EUR: ['eur', 'евр'],
-                  RUB: ['rub', 'руб'],
-                  UAH: ['uah', 'грн', 'гри']}
+def get_currency(user_input):
+    currencies = {'usd': ['usd', 'дол'],
+                  'eur': ['eur', 'евр'],
+                  'rub': ['rub', 'руб'],
+                  'uah': ['uah', 'грн', 'гри']}
 
-    if isinstance(input, str):
+    if isinstance(user_input, str):
         for key, value in currencies.items():
-            if input[:3] in value:
+            if user_input[:3] in value:
                 return key
     return False
 
 
-class Currency:
-    def __init__(self, title, ask, ask_delta, bid, bid_delta):
-        self.title = title
-        self.ask = ask
-        self.ask_delta = ask_delta
-        self.bid = bid
-        self.bid_delta = bid_delta
-
-    def __repr__(self):
-        return self.title
-
-
-class ExRateRequestor:
+class BanksExratesRequestor:
     def __init__(self):
-        html = requests.get('http://minfin.com.ua/currency/').text
-        self.parsed_html = BeautifulSoup(html, 'lxml')
-        self.exrates = {}
+        self.url = URL_BASE + 'summary/' + TOKEN + '/'
+        self.response = None
 
-    def formatting_delta_value(self, item):
-        if float(item) > 0:
-            return '+' + item
-        elif float(item) == 0:
-            return ' ' + item
+    def get_response(self):
+        exrate_json = requests.get(self.url).json()
+
+        # exrate_json = {'usd': {'bid': '26.4000', 'trendAsk': -0.099999999999998, 'ask': '27.1000', 'trendBid': 0},
+        #                'rub': {'bid': '0.4000', 'trendAsk': 0, 'ask': '0.4400', 'trendBid': 0},
+        #                'eur': {'bid': '27.4000', 'trendAsk': -0.029999999999998, 'ask': '28.3350', 'trendBid': 0},
+        #                'gbp': {'bid': '32.0000', 'trendAsk': -0.2, 'ask': '33.3000', 'trendBid': 0}}
+
+        last_update = datetime.datetime.now()
+        self.response = [exrate_json, last_update]
+        #print(exrate_json)
+        print('(!) Exrates have been updated at', last_update)
+
+    def check_last_response(self):
+        current_time = datetime.datetime.now()
+        if self.response is None:
+            return True
+        elif current_time >= self.response[1] + datetime.timedelta(minutes=10):
+            return True
         else:
-            return item
+            return False
 
-    def get_exrates(self):
-        if len(self.exrates) == 0:
-            table = self.parsed_html.find('table', class_='mfm-table')
-            rows = table.find_all('tr')
+    def update_exrate(self):
+        if self.check_last_response():
+            self.get_response()
 
-            for row in rows[1:4]:
-                cells = row.find_all('td')
-                currency_title_cell = cells[0]
-                currency_title = get_currency(currency_title_cell.text.lower().strip())
-                exrate_cell = cells[1]
-                exrate_values = re.findall('[\d]+[,][\d]{,3}', exrate_cell.text)
-                ask_value = exrate_values[0].replace(',', '.')
-                bid_value = exrate_values[1].replace(',', '.')
-                delta_values = exrate_cell.find_all('span')
-                ask_delta = self.formatting_delta_value(delta_values[1].text)
-                bid_delta = self.formatting_delta_value(delta_values[2].text)
-                self.exrates[currency_title] = Currency(currency_title, ask_value, ask_delta, bid_value, bid_delta)
-            return self.exrates
+    def add_trend_arrow(self, exrate_trend):
+        if exrate_trend < 0:
+            return '(▼'
+        elif exrate_trend > 0:
+            return '(▲'
         else:
-            return self.exrates
+            return ''
 
-    def show_exrates(self, currency=None):
-        exrates_dict = self.get_exrates()
+    def get_exrate(self, currency):
+        self.update_exrate()
+        exrate = self.response[0][currency]
+        bid = exrate['bid'][:-1]
+        ask = exrate['ask'][:-1]
+        trendBid = exrate['trendBid']
+        trendAsk = exrate['trendAsk']
+        arrow_trendBid = self.add_trend_arrow(trendBid)
+        arrow_trendAsk = self.add_trend_arrow(trendAsk)
+        trendBid = str(trendBid)[:5] + ')' if trendBid != 0 else ''
+        trendAsk = str(trendAsk)[:5] + ')' if trendAsk != 0 else ''
 
-        if currency is not None:
-            required_exrate = exrates_dict[currency]
-            return 'Покупка: {} | {}\n' \
-                   'Продажа: {} | {}'.format(required_exrate.ask, required_exrate.ask_delta,
-                                             required_exrate.bid, required_exrate.bid_delta)
-        else:
-            exrates_string = ''
-            for value in exrates_dict.values():
-                exrates_string += '{}\n' \
-                                  'Покупка: {} | {}\n' \
-                                  'Продажа: {} | {}\n' \
-                                  '\n'.format(value.title, value.ask, value.ask_delta, value.bid, value.bid_delta)
-            return exrates_string
+        return '<b>Актуальный курс {}</b>\n' \
+               'Покупка: {} {} {}\n' \
+               'Продажа: {} {} {}\n' \
+               'Источник: www.minfin.com.ua/currency/'.format(currency.upper(),
+                                                              bid, arrow_trendBid, trendBid,
+                                                              ask, arrow_trendAsk, trendAsk)
 
     def convert_amount(self, amount, from_currency, to_currency):
-        if to_currency in UAH:
-            from_currency_exrate = self.get_exrates()[from_currency]
-            required_amount = float(amount.replace(',', '.'))
-            return round(required_amount * float(from_currency_exrate.bid), 1)
+        self.update_exrate()
+
+        if to_currency in 'uah':
+            from_currency_exrate = self.response[0][from_currency]['ask']
+            return round(amount * float(from_currency_exrate), 1)
         else:
-            to_currency_exrate = self.get_exrates()[to_currency]
-            required_amount = float(amount.replace(',', '.'))
-            return round(required_amount / float(to_currency_exrate.ask), 1)
+            to_currency_exrate = self.response[0][to_currency]['bid']
+            return round(amount / float(to_currency_exrate), 1)
 
 
-if __name__ == "__main__":
-    e = ExRateRequestor()
-    print(e.convert_amount('200', 'Доллар (USD)', 'Гривна (UAH)'))
-    print(e.convert_amount('12000', 'Гривна (UAH)', 'Евро (EUR)'))
+if __name__ == '__main__':
+    e = BanksExratesRequestor()
+    # while True:
+    #     a = input('currency? ')
+    #     a_upd = get_currency(a)
+    #     print(e.get_exrate(a_upd))
+    print(e.convert_amount(120, 'usd', 'uah'))
+    print(e.convert_amount(6.54, 'uah', 'eur'))
