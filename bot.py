@@ -74,7 +74,7 @@ def check_message(bot, updater):
                                        parse_mode='HTML',
                                        disable_web_page_preview=True)
 
-        if float(user_message[i].replace(',', '.')) and get_currency(user_message[i + 1]):
+        if user_message[i].isdigit() and get_currency(user_message[i + 1]):
             amount = float(user_message[i].replace(',', '.'))
             from_currency = get_currency(user_message[i + 1])
             to_currency = get_currency(user_message[i + 3])
