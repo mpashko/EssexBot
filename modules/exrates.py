@@ -1,3 +1,4 @@
+import requests
 import datetime
 
 TOKEN = 'b73aefb24253af83b2e8eb37f852e73125497748'
@@ -23,12 +24,12 @@ class BanksExratesRequestor:
         self.response = None
 
     def get_response(self):
-        #exrate_json = requests.get(self.url).json()
+        exrate_json = requests.get(self.url).json()
 
-        exrate_json = {'usd': {'bid': '26.4000', 'trendAsk': -0.099999999999998, 'ask': '27.1000', 'trendBid': 0},
-                       'rub': {'bid': '0.4000', 'trendAsk': 0, 'ask': '0.4400', 'trendBid': 0},
-                       'eur': {'bid': '27.4000', 'trendAsk': -0.029999999999998, 'ask': '28.3350', 'trendBid': 0},
-                       'gbp': {'bid': '32.0000', 'trendAsk': -0.2, 'ask': '33.3000', 'trendBid': 0}}
+        # exrate_json = {'usd': {'bid': '26.4000', 'trendAsk': -0.099999999999998, 'ask': '27.1000', 'trendBid': 0},
+        #                'rub': {'bid': '0.4000', 'trendAsk': 0, 'ask': '0.4400', 'trendBid': 0},
+        #                'eur': {'bid': '27.4000', 'trendAsk': -0.029999999999998, 'ask': '28.3350', 'trendBid': 0},
+        #                'gbp': {'bid': '32.0000', 'trendAsk': -0.2, 'ask': '33.3000', 'trendBid': 0}}
 
         last_update = datetime.datetime.now()
         self.response = [exrate_json, last_update]
