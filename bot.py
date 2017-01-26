@@ -8,14 +8,15 @@ import logging
 import os
 
 TOKEN = '286587089:AAEKSCnEp13jwzAc3TDH6Kv0114iCPCEAGI'     # EssexBot
-#TOKEN = '312742066:AAEGHOcMgE4S3I-t--9GBiocKmjZWC84hBk'     # IrvineBot
-PORT = int(os.environ.get("PORT", 5000))
+# TOKEN = '312742066:AAEGHOcMgE4S3I-t--9GBiocKmjZWC84hBk'     # IrvineBot
+PORT = int(os.environ.get('PORT', 5000))
 HELP_MESSAGE = '<b>Актуальные курсы валют и конвертер</b>\n' \
                '- Получить средний курс валют в банках:\n' \
                '  <i>курс [валюта]</i>\n' \
                '- Перевод из любой валюты в гривны и обратно:\n' \
                '  <i>[сумма] [валюта] в гривне\n' \
-               '  [сумма] гривен в [валюта]</i>\n'
+               '  [сумма] гривен в [валюта]</i>\n' \
+               'Источник: www.minfin.com.ua/currency/\n'
 EXRATE_MODULE = None
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -27,12 +28,14 @@ def get_start_message(bot, updater):
                                '\n{}\n'
                                'Если захочешь увидеть это сообщение еще раз - просто введи /help.'
                                .format(updater.message.from_user.first_name, HELP_MESSAGE),
-                               parse_mode='HTML')
+                               parse_mode='HTML',
+                               disable_web_page_preview=True)
 
 
 def get_help_message(bot, updater):
     updater.message.reply_text(text=HELP_MESSAGE,
-                               parse_mode='HTML')
+                               parse_mode='HTML',
+                               disable_web_page_preview=True)
 
 
 def check_module():
@@ -83,7 +86,7 @@ def check_message(bot, updater):
                 exrate = check_module()
                 converted_amount = exrate.convert_amount(amount, from_currency, to_currency)
                 updater.message.reply_text(text='{} {} = {} {}'
-                                           .format(amount, from_currency.upper(),
+                                           .format(exrate.fix_amount_view(amount), from_currency.upper(),
                                                    converted_amount, to_currency.upper()))
             else:
                 updater.message.reply_text('К сожалению, могу проводить конвертацию только в / из гривны.')
@@ -129,7 +132,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text, check_message))
     dp.add_handler(CallbackQueryHandler(button))
 
-    #updater.start_polling()
+    # updater.start_polling()
 
     updater.idle()
 
