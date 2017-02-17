@@ -1,6 +1,6 @@
 import pytest
 
-from modules.exchange_rates import XrateHandler
+from modules.exchange_rate import XrateHandler
 
 
 def test_convert_to_str():

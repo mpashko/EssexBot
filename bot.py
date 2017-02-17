@@ -5,7 +5,7 @@ import configparser
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters,\
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from modules import exchange_rates
+from modules import exchange_rate
 
 
 class Configurator:
@@ -37,7 +37,7 @@ class TelegramBot:
         config = Configurator()
         self.bot_name = config.bot_name
         self.token = config.token
-        self.xrate_handler = exchange_rates.XrateHandler()
+        self.xrate_handler = exchange_rate.XrateHandler()
         self.updater = Updater(self.token)
         self.dp = self.updater.dispatcher
         self.define_operating_mode()
