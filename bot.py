@@ -68,7 +68,7 @@ class TelegramBot:
     def get_start_message(self, bot, updater):
         updater.message.reply_text(
             text="Приветствую {}! Чем могу быть полезен?\n"
-                 "{}"
+                 "\n{}\n"
                  "Если захочешь увидеть это сообщение еще раз - просто введи /help."
             .format(updater.message.from_user.first_name, self.HELP_MESSAGE),
             parse_mode="HTML",
