@@ -1,141 +1,147 @@
 # -*- coding: utf-8 -*-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
-from modules.weather import WeatherRequestor
-from modules.exrates import *
-from modules.movies import MoviesRequestor
-import logging
 import os
-
-TOKEN = '286587089:AAEKSCnEp13jwzAc3TDH6Kv0114iCPCEAGI'     # EssexBot
-# TOKEN = '312742066:AAEGHOcMgE4S3I-t--9GBiocKmjZWC84hBk'     # IrvineBot
-PORT = int(os.environ.get('PORT', 5000))
-HELP_MESSAGE = '<b>Актуальные курсы валют и конвертер</b>\n' \
-               '- Получить средний курс валют в банках:\n' \
-               '  <i>курс [валюта]</i>\n' \
-               '- Перевод из любой валюты в гривны и обратно:\n' \
-               '  <i>[сумма] [валюта] в гривне\n' \
-               '  [сумма] гривен в [валюта]</i>\n' \
-               'Источник: www.minfin.com.ua/currency/\n'
-EXRATE_MODULE = None
-
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+import re
+import configparser
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters,\
+    CallbackQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from modules import exchange_rates
 
 
-def get_start_message(bot, updater):
-    updater.message.reply_text(text='Приветствую {}! Чем могу быть полезен?\n'
-                               '\n{}\n'
-                               'Если захочешь увидеть это сообщение еще раз - просто введи /help.'
-                               .format(updater.message.from_user.first_name, HELP_MESSAGE),
-                               parse_mode='HTML',
-                               disable_web_page_preview=True)
+class Configurator:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read("config.ini")
+        self.bot_name, self.token = self._define_bot_credentials()
+
+    def _define_bot_credentials(self):
+        bot_name = self.config["Active bot"]["bot"]
+        if bot_name == "Essex":
+            token = self.config[bot_name]["token"]
+            return bot_name, token
+        elif bot_name == "Irvine":
+            token = self.config[bot_name]["token"]
+            return bot_name, token
 
 
-def get_help_message(bot, updater):
-    updater.message.reply_text(text=HELP_MESSAGE,
-                               parse_mode='HTML',
-                               disable_web_page_preview=True)
+class TelegramBot:
+    HELP_MESSAGE = "<b>Актуальные курсы валют и конвертер</b>\n" \
+                   "- Получить средний курс валют в банках:\n" \
+                   "  <i>курс [валюта] или [валюта]</i>\n" \
+                   "- Перевод из любой валюты в гривны и обратно:\n" \
+                   "  <i>[сумма] [валюта]\n" \
+                   "  [сумма] гривен в [валюта]</i>\n" \
+                   "Источник: www.minfin.com.ua/currency/\n"
 
+    def __init__(self):
+        config = Configurator()
+        self.bot_name = config.bot_name
+        self.token = config.token
+        self.xrate_handler = exchange_rates.XrateHandler()
+        self.updater = Updater(self.token)
+        self.dp = self.updater.dispatcher
+        self.define_operating_mode()
 
-def check_module():
-    global EXRATE_MODULE
-    if EXRATE_MODULE is None:
-        EXRATE_MODULE = BanksExratesRequestor()
-        return EXRATE_MODULE
-    else:
-        return EXRATE_MODULE
+        self.dp.add_handler(CommandHandler("start", self.get_start_message))
+        self.dp.add_handler(CommandHandler("help", self.get_help_message))
+        self.dp.add_handler(MessageHandler(Filters.text, self.handling_message))
+        self.dp.add_handler(CallbackQueryHandler(self.button))
 
+        self.updater.idle()
 
-def check_message(bot, updater):
-    user_message = updater.message.text.lower().split(' ')
-    print(user_message)
+    def define_operating_mode(self):
+        if self.bot_name == "Essex":
+            return self.webhook_mode()
+        elif self.bot_name == "Irvine":
+            return self.polling_mode()
 
-    for i in range(len(user_message)):
+    def webhook_mode(self):
+        print("(!) Webhook mode")
+        port = int(os.environ.get("PORT", 5000))
+        self.updater.start_webhook(listen="0.0.0.0", port=port, url_path=self.token)
+        self.updater.bot.setWebhook("https://essexbot.herokuapp.com/{}".format(self.token))
 
-        # Weather
-        if "погода" in user_message[i]:
-            updater.message.reply_text(WeatherRequestor().current_weather())
+    def polling_mode(self):
+        print("(!) Polling mode")
+        return self.updater.start_polling()
 
-        # Exchange Rates
-        if 'курс' in user_message[i] and 'валют' in user_message[i + 1]:
-            keyboard = [[InlineKeyboardButton('Доллар', callback_data='usd'),
-                         InlineKeyboardButton('Евро', callback_data='eur'),
-                         InlineKeyboardButton('Рубль', callback_data='rub')]]
+    def get_start_message(self, bot, updater):
+        updater.message.reply_text(
+            text="Приветствую {}! Чем могу быть полезен?\n"
+                 "{}"
+                 "Если захочешь увидеть это сообщение еще раз - просто введи /help."
+            .format(updater.message.from_user.first_name, self.HELP_MESSAGE),
+            parse_mode="HTML",
+            disable_web_page_preview=True)
 
+    def get_help_message(self, bot, updater):
+        updater.message.reply_text(text=self.HELP_MESSAGE,
+                                   parse_mode="HTML",
+                                   disable_web_page_preview=True)
+
+    def handling_message(self, bot, updater):
+        user_message = updater.message.text
+        if "курс валют" in user_message:
+            keyboard = [[InlineKeyboardButton("Доллар", callback_data="usd"),
+                         InlineKeyboardButton("Евро", callback_data="eur"),
+                         InlineKeyboardButton("Рубль", callback_data="rub")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
+            return updater.message.reply_text(text="Какая валюта интересует:",
+                                              reply_markup=reply_markup)
 
-            updater.message.reply_text(text='Какая валюта интересует:',
-                                       reply_markup=reply_markup)
+        user_message_list = user_message.split(" ")
+        for index in range(len(user_message_list)):
+            currency = self._define_currency(user_message_list[index])
+            amount = re.match("\d+[,.]?\d?", user_message_list[index])
+            currency_to = None
+            if amount:
+                currency = self._define_currency(user_message_list[index + 1])
 
-        if 'курс' in user_message[i] and get_currency(user_message[i + 1]):
-            exrate = check_module()
-            currency = get_currency(user_message[i + 1])
-            exrate_value = exrate.get_exrate(currency=currency)
+            if len(user_message_list) >= 3:
+                try:
+                    currency_to = self._define_currency(user_message_list[index + 3])
+                except IndexError:
+                    currency_to = self._define_currency(user_message_list[index + 2])
 
-            updater.message.reply_text(text=exrate_value,
-                                       parse_mode='HTML',
-                                       disable_web_page_preview=True)
+            if amount and currency and currency_to:
+                amount = float(user_message_list[index].replace(",", "."))
+                converted_amount = self.xrate_handler.convert_amount(amount, currency, currency_to)
+                return updater.message.reply_text(text=converted_amount,
+                                                  parse_mode="HTML",
+                                                  disable_web_page_preview=True)
 
-        if user_message[i].isdigit() and get_currency(user_message[i + 1]):
-            amount = float(user_message[i].replace(',', '.'))
-            from_currency = get_currency(user_message[i + 1])
-            to_currency = get_currency(user_message[i + 3])
+            elif amount and currency:
+                amount = float(user_message_list[index].replace(",", "."))
+                converted_amount = self.xrate_handler.convert_amount(amount, currency)
+                return updater.message.reply_text(text=converted_amount,
+                                                  parse_mode="HTML",
+                                                  disable_web_page_preview=True)
+            elif currency:
+                xrate = self.xrate_handler.get_xrate_value(currency)
+                return updater.message.reply_text(text=xrate,
+                                                  parse_mode="HTML",
+                                                  disable_web_page_preview=True)
 
-            if from_currency and to_currency and (from_currency is 'uah' or to_currency is 'uah'):
-                exrate = check_module()
-                converted_amount = exrate.convert_amount(amount, from_currency, to_currency)
-                updater.message.reply_text(text='{} {} = {} {}'
-                                           .format(exrate.fix_amount_view(amount), from_currency.upper(),
-                                                   converted_amount, to_currency.upper()))
-            else:
-                updater.message.reply_text('К сожалению, могу проводить конвертацию только в / из гривны.')
+    @staticmethod
+    def _define_currency(word):
+        prefix = word[:3].lower()
+        if prefix in ["usd", "дол"]:
+            return "usd"
+        elif prefix in ["eur", "евр", "євр"]:
+            return "eur"
+        elif prefix in ["rub", "руб"]:
+            return "rub"
+        elif prefix in ["uah", "грн", "гри"]:
+            return "uah"
 
-        # Movies
-        if user_message[i][:4] in ["филь", "кино"]:
-            if user_message[i - 1].isdigit():
-                quantity = int(user_message[i - 1])
-                top_movies = MoviesRequestor().get_actual_movie_list(limit=quantity)
-                updater.message.reply_text(parse_mode="HTML",
-                                           disable_web_page_preview=True,
-                                           text="Лучшие {} фильмов на данный момент:\n{}".format(quantity, top_movies))
-            else:
-                movies = MoviesRequestor().get_actual_movie_list()
-                updater.message.reply_text(parse_mode="HTML",
-                                           disable_web_page_preview=False,
-                                           text="Советую посмотреть {}".format(movies))
-
-
-def button(bot, update):
-    query = update.callback_query
-    exrate = check_module()
-    exrate_value = exrate.get_exrate(currency=query.data)
-    bot.editMessageText(parse_mode='HTML',
-                        disable_web_page_preview=True,
-                        text=exrate_value,
-                        chat_id=query.message.chat_id,
-                        message_id=query.message.message_id)
-
-
-def main():
-    updater = Updater(TOKEN)
-
-    updater.start_webhook(listen="0.0.0.0",
-                          port=PORT,
-                          url_path=TOKEN)
-    updater.bot.setWebhook("https://essexbot.herokuapp.com/" + TOKEN)
-
-    dp = updater.dispatcher
-
-    dp.add_handler(CommandHandler('start', get_start_message))
-    dp.add_handler(CommandHandler('help', get_help_message))
-    dp.add_handler(MessageHandler(Filters.text, check_message))
-    dp.add_handler(CallbackQueryHandler(button))
-
-    # updater.start_polling()
-
-    updater.idle()
-
+    def button(self, bot, update):
+        query = update.callback_query
+        xrate_value = self.xrate_handler.get_xrate_value(query.data)
+        bot.editMessageText(parse_mode="HTML",
+                            disable_web_page_preview=True,
+                            text=xrate_value,
+                            chat_id=query.message.chat_id,
+                            message_id=query.message.message_id)
 
 if __name__ == "__main__":
-    main()
+    bot = TelegramBot()

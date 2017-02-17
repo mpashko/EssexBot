@@ -1,7 +1,3 @@
-python-telegram-bot
-requests
-datetime
-bs4
-lxml
-gspread
-oauth2client
+pytest==3.0.4
+python-telegram-bot==5.2.0
+requests==2.11.1
