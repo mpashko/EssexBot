@@ -103,7 +103,7 @@ class TelegramBot:
                 except IndexError:
                     currency_to = self._define_currency(user_message_list[index + 2])
 
-            if amount and currency and currency_to:
+            if amount and currency and currency_to:     # TODO: Fix incorrect conversion in case of two different currencies, except if one of them is uah
                 amount = float(user_message_list[index].replace(",", "."))
                 converted_amount = self.xrate_handler.convert_amount(amount, currency, currency_to)
                 return updater.message.reply_text(text=converted_amount,
